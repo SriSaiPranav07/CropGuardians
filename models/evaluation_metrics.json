@@ -1,0 +1,232 @@
+{
+  "accuracy": 0.1,
+  "accuracy_pct": 10.0,
+  "macro_precision": 0.0333,
+  "macro_recall": 0.1,
+  "macro_f1": 0.05,
+  "weighted_precision": 0.0333,
+  "weighted_recall": 0.1,
+  "weighted_f1": 0.05,
+  "total_test_samples": 10,
+  "per_class": {
+    "Apple___Apple_scab": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Apple___Black_rot": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Apple___Cedar_apple_rust": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Apple___healthy": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Corn_(maize)___Common_rust_": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Corn_(maize)___Northern_Leaf_Blight": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Corn_(maize)___healthy": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Grape___Black_rot": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Grape___Esca_(Black_Measles)": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "Grape___healthy": {
+      "precision": 0.3333,
+      "recall": 1.0,
+      "f1_score": 0.5,
+      "support": 1
+    }
+  },
+  "confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  ],
+  "class_names": [
+    "Apple___Apple_scab",
+    "Apple___Black_rot",
+    "Apple___Cedar_apple_rust",
+    "Apple___healthy",
+    "Corn_(maize)___Common_rust_",
+    "Corn_(maize)___Northern_Leaf_Blight",
+    "Corn_(maize)___healthy",
+    "Grape___Black_rot",
+    "Grape___Esca_(Black_Measles)",
+    "Grape___healthy"
+  ],
+  "model_architecture": "MobileNetV2 (alpha=0.35)",
+  "model_file_size_mb": 4.07,
+  "total_parameters": 580586,
+  "trainable_parameters": 167818,
+  "epochs_trained": 3,
+  "training_loss": [
+    3.0965754985809326,
+    2.7783355712890625,
+    2.621020555496216
+  ],
+  "val_loss": [
+    2.6414763927459717,
+    2.607671022415161,
+    2.5691299438476562
+  ],
+  "training_accuracy": [
+    0.125,
+    0.17499999701976776,
+    0.17499999701976776
+  ],
+  "val_accuracy": [
+    0.10000000149011612,
+    0.10000000149011612,
+    0.10000000149011612
+  ]
+}
