@@ -7,16 +7,6 @@ import os
 import json
 from typing import Dict, Any, List, Optional
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from sklearn.metrics import (
-    accuracy_score,
-    precision_recall_fscore_support,
-    confusion_matrix,
-    classification_report
-)
-import tensorflow as tf
 
 
 def evaluate_dataset_predictions(
@@ -28,6 +18,11 @@ def evaluate_dataset_predictions(
     Computes genuine precision, recall, f1-score, accuracy, and confusion matrix
     from ground truth and predicted labels.
     """
+    from sklearn.metrics import (
+        accuracy_score,
+        precision_recall_fscore_support,
+        confusion_matrix
+    )
     acc = float(accuracy_score(y_true, y_pred))
     prec_macro, rec_macro, f1_macro, _ = precision_recall_fscore_support(
         y_true, y_pred, average="macro", zero_division=0
@@ -68,11 +63,12 @@ def evaluate_dataset_predictions(
 
 
 def evaluate_model_on_dataset(
-    model: tf.keras.Model,
-    test_ds: tf.data.Dataset,
+    model: Any,
+    test_ds: Any,
     class_names: List[str]
 ) -> Dict[str, Any]:
-    """Runs batch predictions on a test dataset and evaluates metrics."""
+    """Runs batch predictions on a test dataset and evaluates metrics.
+    Requires TensorFlow (only used during local training)."""
     y_true_all = []
     y_pred_all = []
 
@@ -94,8 +90,12 @@ def plot_confusion_matrix_figure(
     cm: np.ndarray,
     class_names: List[str],
     save_path: Optional[str] = "models/confusion_matrix.png"
-) -> plt.Figure:
+):
     """Generates an annotated confusion matrix plot and optionally saves it."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(10, 8), dpi=150)
     im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Greens)
     ax.figure.colorbar(im, ax=ax)

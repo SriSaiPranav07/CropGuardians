@@ -1,6 +1,9 @@
 """
 model_utils.py - Lightweight MobileNetV2 Architecture, Preprocessing, and Inference
 Implements MobileNetV2 transfer learning optimized for edge / mobile-browser serving.
+
+TensorFlow is imported lazily — only needed for local training.
+For cloud inference, only tflite-runtime + PIL + numpy are required.
 """
 
 import os
@@ -13,13 +16,24 @@ import json
 from typing import List, Tuple, Dict, Any, Union, Optional
 from PIL import Image
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input
-from tensorflow.keras import layers, models, optimizers
 
 IMG_SIZE: Tuple[int, int] = (224, 224)
 INPUT_SHAPE: Tuple[int, int, int] = (224, 224, 3)
 CONFIDENCE_THRESHOLD: float = 0.60
+
+
+def _get_tf():
+    """Lazy import of TensorFlow — only needed for training, not inference."""
+    import tensorflow as tf
+    return tf
+
+
+def _mobilenetv2_preprocess(img_array: np.ndarray) -> np.ndarray:
+    """
+    Replicate tf.keras.applications.mobilenet_v2.preprocess_input
+    without importing TensorFlow: scales pixel values from [0, 255] to [-1, 1].
+    """
+    return (img_array / 127.5) - 1.0
 
 
 def build_mobilenetv2_model(
@@ -27,12 +41,18 @@ def build_mobilenetv2_model(
     alpha: float = 0.35,
     learning_rate: float = 1e-4,
     freeze_base: bool = True
-) -> tf.keras.Model:
+):
     """
     Constructs a lightweight MobileNetV2 transfer learning model.
     alpha=0.35 yields a highly compact architecture (~1.7M parameters, ~7MB)
     meeting Zelvora mobile-browser and Streamlit Community Cloud resource constraints.
+
+    Requires TensorFlow (used only during local training).
     """
+    tf = _get_tf()
+    from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+    from tensorflow.keras import layers, models, optimizers
+
     base_model = MobileNetV2(
         input_shape=INPUT_SHAPE,
         include_top=False,
@@ -109,7 +129,7 @@ def preprocess_image(
 ) -> np.ndarray:
     """
     Loads, resizes, and pre-processes an input leaf image for MobileNetV2.
-    Applies official tf.keras.applications.mobilenet_v2.preprocess_input (scales to [-1, 1]).
+    Applies MobileNetV2 preprocessing (scales to [-1, 1]) without requiring TensorFlow.
     Returns batch-dimension tensor of shape (1, target_size[0], target_size[1], 3).
     """
     is_valid, err_msg, img = validate_image_file(image_source)
@@ -120,15 +140,15 @@ def preprocess_image(
     img = img.resize(target_size, Image.Resampling.BILINEAR)
     img_array = np.array(img, dtype=np.float32)
 
-    # MobileNetV2 preprocess_input expects RGB in range [0, 255] and maps to [-1, 1]
-    img_preprocessed = preprocess_input(img_array)
+    # MobileNetV2 preprocess_input: scale [0, 255] -> [-1, 1]
+    img_preprocessed = _mobilenetv2_preprocess(img_array)
 
     # Add batch dimension: (1, 224, 224, 3)
     return np.expand_dims(img_preprocessed, axis=0)
 
 
 def predict_leaf_disease(
-    model: tf.keras.Model,
+    model,
     preprocessed_tensor: np.ndarray,
     class_names: List[str],
     confidence_threshold: float = CONFIDENCE_THRESHOLD
@@ -136,6 +156,7 @@ def predict_leaf_disease(
     """
     Performs inference and latency measurement on a preprocessed leaf tensor.
     Returns predicted class, confidence percentage, top-3 candidates, and low-confidence alert flag.
+    Works with both TFLite wrapper and Keras models.
     """
     start_time = time.perf_counter()
     raw_preds = model.predict(preprocessed_tensor, verbose=0)[0]
@@ -169,13 +190,15 @@ def predict_leaf_disease(
 
 
 def save_trained_artifacts(
-    model: tf.keras.Model,
+    model,
     class_names: List[str],
     model_dir: str = "models",
     model_filename: str = "mobilenetv2_cropguardians.keras",
     classes_filename: str = "class_names.json"
 ) -> Tuple[str, str]:
-    """Saves model in .keras format and classes in JSON order."""
+    """Saves model in .keras format, .tflite format, and classes in JSON order.
+    Requires TensorFlow (only used during training)."""
+    tf = _get_tf()
     os.makedirs(model_dir, exist_ok=True)
     model_path = os.path.join(model_dir, model_filename)
     classes_path = os.path.join(model_dir, classes_filename)
@@ -184,19 +207,75 @@ def save_trained_artifacts(
     with open(classes_path, "w", encoding="utf-8") as f:
         json.dump(class_names, f, indent=2)
 
+    # Also export lightweight .tflite flatbuffer for edge/cloud resilience
+    try:
+        tflite_path = model_path.replace(".keras", ".tflite")
+        converter = tf.lite.TFLiteConverter.from_keras_model(model)
+        tflite_bytes = converter.convert()
+        with open(tflite_path, "wb") as f:
+            f.write(tflite_bytes)
+    except Exception:
+        pass
+
     return model_path, classes_path
+
+
+class TFLiteModelWrapper:
+    """Lightweight wrapper providing standard .predict() API over a TFLite flatbuffer.
+    Uses tflite-runtime if available, falls back to full TensorFlow."""
+    def __init__(self, tflite_path: str):
+        self.tflite_path = tflite_path
+        interpreter = None
+
+        # Try ai-edge-litert first (modern Google LiteRT, supports Python 3.11/3.12)
+        if interpreter is None:
+            try:
+                from ai_edge_litert import interpreter as litert
+                interpreter = litert.Interpreter(model_path=tflite_path)
+            except (ImportError, Exception):
+                pass
+
+        # Try legacy tflite_runtime
+        if interpreter is None:
+            try:
+                import tflite_runtime.interpreter as tflite
+                interpreter = tflite.Interpreter(model_path=tflite_path)
+            except (ImportError, Exception):
+                pass
+
+        # Fall back to full tensorflow if neither lite runtime is installed
+        if interpreter is None:
+            try:
+                import tensorflow as tf
+                interpreter = tf.lite.Interpreter(model_path=tflite_path)
+            except ImportError:
+                raise ImportError(
+                    "No TFLite runtime found. Install one with: pip install ai-edge-litert"
+                )
+
+        self.interpreter = interpreter
+        self.interpreter.allocate_tensors()
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
+
+    def predict(self, preprocessed_tensor: np.ndarray, verbose: int = 0) -> np.ndarray:
+        tensor_in = preprocessed_tensor.astype(np.float32)
+        self.interpreter.set_tensor(self.input_details[0]["index"], tensor_in)
+        self.interpreter.invoke()
+        output_data = self.interpreter.get_tensor(self.output_details[0]["index"])
+        return output_data
 
 
 def load_model_and_classes(
     model_path: str = "models/mobilenetv2_cropguardians.keras",
     classes_path: str = "models/class_names.json"
-) -> Tuple[Optional[tf.keras.Model], List[str]]:
+) -> Tuple[Optional[Any], List[str]]:
     """
-    Safely loads trained .keras model and associated class list.
-    Returns (model, class_names). Handles missing files gracefully.
+    Safely loads trained model (TFLite preferred) and associated class list.
+    Prioritizes .tflite for lightweight cloud deployment (no TensorFlow needed).
+    Falls back to .keras if TensorFlow is available.
     """
-    if not os.path.exists(model_path):
-        return None, []
+    tflite_path = model_path.replace(".keras", ".tflite")
 
     if not os.path.exists(classes_path):
         return None, []
@@ -204,12 +283,36 @@ def load_model_and_classes(
     with open(classes_path, "r", encoding="utf-8") as f:
         class_names = json.load(f)
 
-    model = tf.keras.models.load_model(model_path, compile=False)
-    return model, class_names
+    # 1. Try loading TFLite if available (fastest, ultralight ~2MB, no tensorflow needed)
+    if os.path.exists(tflite_path):
+        try:
+            return TFLiteModelWrapper(tflite_path), class_names
+        except Exception:
+            pass
+
+    # 2. Try loading .keras via standard tf.keras (requires tensorflow)
+    if os.path.exists(model_path):
+        try:
+            tf = _get_tf()
+            model = tf.keras.models.load_model(model_path, compile=False)
+            return model, class_names
+        except Exception:
+            # If keras load fails but tflite exists, try tflite again
+            if os.path.exists(tflite_path):
+                try:
+                    return TFLiteModelWrapper(tflite_path), class_names
+                except Exception:
+                    pass
+            return None, class_names
+
+    return None, []
 
 
 def get_model_file_size_mb(model_path: str) -> float:
     """Returns size of model file on disk in Megabytes."""
     if os.path.exists(model_path):
         return round(os.path.getsize(model_path) / (1024 * 1024), 2)
+    tflite_path = model_path.replace(".keras", ".tflite")
+    if os.path.exists(tflite_path):
+        return round(os.path.getsize(tflite_path) / (1024 * 1024), 2)
     return 0.0

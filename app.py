@@ -5,9 +5,6 @@ Engineered for Streamlit Community Cloud and mobile-responsive browser access.
 """
 
 import os
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
 import io
 import time
 from pathlib import Path
@@ -139,9 +136,14 @@ st.markdown("""
 def get_cached_model():
     """Caches the trained model in memory to prevent reloading across user sessions."""
     model_path = Path("models/mobilenetv2_cropguardians.keras")
+    tflite_path = Path("models/mobilenetv2_cropguardians.tflite")
     classes_path = Path("models/class_names.json")
 
-    if not model_path.exists() or not classes_path.exists():
+    if not classes_path.exists():
+        return None, []
+
+    # At least one model file must exist
+    if not model_path.exists() and not tflite_path.exists():
         return None, []
 
     model, class_names = load_model_and_classes(str(model_path), str(classes_path))
@@ -181,9 +183,12 @@ def render_sidebar():
         st.markdown("---")
         st.markdown("#### ⚡ System Specs")
         model_path = Path("models/mobilenetv2_cropguardians.keras")
-        if model_path.exists():
-            size_mb = get_model_file_size_mb(str(model_path))
-            st.success(f"**Model Active:** MobileNetV2 (`{size_mb} MB`)")
+        tflite_path = Path("models/mobilenetv2_cropguardians.tflite")
+        active_path = tflite_path if tflite_path.exists() else model_path
+        if active_path.exists():
+            size_mb = get_model_file_size_mb(str(active_path))
+            model_type = "TFLite" if active_path.suffix == ".tflite" else "Keras"
+            st.success(f"**Model Active:** MobileNetV2 {model_type} (`{size_mb} MB`)")
         else:
             st.warning("**Model Status:** Not yet trained / loaded")
 
@@ -267,10 +272,11 @@ def render_detector_tab(model, class_names):
         if model is None:
             st.warning("⚠️ **Trained Model Not Found**")
             st.write(
-                "A trained `.keras` model was not detected in `models/mobilenetv2_cropguardians.keras`.\n\n"
+                "No trained model found in `models/`. Run training locally first.\n\n"
                 "**Quick Resolution:**\n"
-                "1. Run `python train_model.py --epochs 5` to train the lightweight MobileNetV2 classifier.\n"
-                "2. Once training completes, refresh this page."
+                "1. Run `python train_model.py --epochs 5` locally.\n"
+                "2. Ensure `mobilenetv2_cropguardians.tflite` + `class_names.json` are in `models/`.\n"
+                "3. Commit, push to GitHub, then refresh this page."
             )
             return
 
