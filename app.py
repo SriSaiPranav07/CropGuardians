@@ -161,7 +161,7 @@ def render_header():
     st.markdown("""
     <div class="main-header">
         <div class="main-title">🌿 CropGuardians AI</div>
-        <div class="main-subtitle">AI-Powered Crop Disease Detection · Zelvora Technologies Project</div>
+        <div class="main-subtitle">AI-Powered Crop Disease Detection</div>
         <p class="header-desc">
             Empowering agricultural producers with instant, lightweight plant disease diagnostics.
             Upload or photograph a crop leaf to identify pathogens, evaluate confidence, and receive verified cultural management guidelines.
@@ -197,8 +197,6 @@ def render_sidebar():
             "to minimize mobile client battery and data consumption."
         )
 
-        st.markdown("---")
-        st.caption("CropGuardians AI v2.0 · Zelvora AI Internship Week 2")
         return selected_tab
 
 
@@ -464,7 +462,7 @@ def render_about_tab():
     st.header("📖 About CropGuardians AI")
     st.markdown("""
     ### Project Overview
-    **CropGuardians AI** is an intelligent agricultural decision-support tool engineered for the **Zelvora Technologies AI Internship (Week 2)**.
+    **CropGuardians AI** is an intelligent agricultural decision-support tool engineered for instant, lightweight crop pathology detection.
     It leverages state-of-the-art Convolutional Neural Networks (CNN) with **MobileNetV2 transfer learning** to assist farmers, agronomists, and home growers in rapidly detecting crop diseases from leaf photographs.
 
     ### Core Deliverables Achieved
